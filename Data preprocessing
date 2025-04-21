@@ -1,0 +1,64 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+
+def load_data(file_path):
+    """Loads the movie data from the specified CSV file."""
+    return pd.read_csv(file_path)
+
+def preprocess_data(df):
+    """
+    Performs data preprocessing steps:
+    - Handles missing values.
+    - Encodes categorical variables.
+    - Scales numerical features.
+    """
+    # Identify categorical and numerical features
+    categorical_features = ['genres', 'director', 'actors'] # Adjust based on your dataset
+    numerical_features = ['release_year', 'budget', 'revenue'] # Adjust based on your dataset
+    target_variable = 'rating'
+
+    # Separate features and target
+    X = df.drop(target_variable, axis=1)
+    y = df[target_variable]
+
+    # Preprocessing pipelines
+    numerical_transformer = Pipeline(steps=[
+        ('imputer', SimpleImputer(strategy='median')), # Or other strategy
+        ('scaler', StandardScaler())
+    ])
+
+    categorical_transformer = Pipeline(steps=[
+        ('imputer', SimpleImputer(strategy='most_frequent')), # Or other strategy
+        ('onehot', OneHotEncoder(handle_unknown='ignore'))
+    ])
+
+    # Create a preprocessor using ColumnTransformer
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', numerical_transformer, numerical_features),
+            ('cat', categorical_transformer, categorical_features)])
+
+    # Apply preprocessing and split data
+    X_processed = preprocessor.fit_transform(X)
+    feature_names = preprocessor.get_feature_names_out(X.columns)
+    X_processed_df = pd.DataFrame(X_processed, columns=feature_names)
+
+    X_train, X_test, y_train, y_test = train_test_split(X_processed_df, y, test_size=0.2, random_state=42)
+
+    return X_train, X_test, y_train, y_test, preprocessor
+
+if __name__ == "__main__":
+    data_path = '../data/movie_data.csv'
+    df = load_data(data_path)
+    X_train, X_test, y_train, y_test, preprocessor = preprocess_data(df.copy())
+    print("Shape of X_train:", X_train.shape)
+    print("Shape of X_test:", X_test.shape)
+    print("Shape of y_train:", y_train.shape)
+    print("Shape of y_test:", y_test.shape)
+    # You can save the preprocessor here if needed for deployment
+    # import joblib
+    # joblib.dump(preprocessor, '../models/preprocessor.joblib')
